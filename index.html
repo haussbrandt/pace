@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPX Fastest Segment Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for file input button */
+        .file-input-button {
+            background-color: #4A5568; /* gray-700 */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: inline-block; /* To allow text-align center to work on the button itself if needed */
+        }
+        .file-input-button:hover {
+            background-color: #2D3748; /* gray-800 */
+        }
+        #gpxFile {
+            display: none; /* Hide the default file input */
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f; /* A distinct blue for the spinner */
+            animation: spin 1s ease infinite;
+            margin: 20px auto; /* Center the spinner */
+        }
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        /* Ensure table has nice spacing and borders */
+        #resultsTable th, #resultsTable td {
+            padding: 0.75rem; /* p-3 */
+            border-bottom-width: 1px;
+            border-color: #E5E7EB; /* gray-200 */
+        }
+        #resultsTable th {
+            background-color: #F9FAFB; /* gray-50 */
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-xl w-full max-w-2xl"> <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-700 mb-6">Fastest Segment Analyzer</h1>
+
+        <div class="mb-6 text-center"> <label for="gpxFile" class="file-input-button">
+                Select GPX File
+            </label>
+            <input type="file" id="gpxFile" accept=".gpx">
+            <p id="fileName" class="text-sm text-gray-500 mt-2"></p>
+        </div>
+
+        <button id="analyzeButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50">
+            Analyze Track
+        </button>
+
+        <div id="loadingSpinner" class="hidden spinner"></div>
+
+        <div id="messageArea" class="mt-4 text-center text-red-500 font-medium"></div>
+
+        <div id="resultsArea" class="mt-6 hidden">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4 text-center">Fastest Segments</h2>
+            <div class="overflow-x-auto rounded-lg shadow">
+                <table id="resultsTable" class="w-full text-sm text-left text-gray-600">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="py-3 px-4">Segment</th>
+                            <th scope="col" class="py-3 px-4">Time</th>
+                            <th scope="col" class="py-3 px-4">Avg. Pace</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                        </tbody>
+                </table>
+            </div>
+            <p id="noSegmentsFoundMessage" class="text-center text-gray-500 mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <footer class="text-center text-gray-500 mt-8 text-sm">
+        <p>&copy; 2025 GPX Analyzer. For demonstration purposes.</p>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const gpxFileInput = document.getElementById('gpxFile');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const messageArea = document.getElementById('messageArea');
+        const resultsArea = document.getElementById('resultsArea');
+        const resultsTableBody = document.getElementById('resultsTableBody');
+        const fileNameDisplay = document.getElementById('fileName');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const noSegmentsFoundMessage = document.getElementById('noSegmentsFoundMessage');
+
+        // Segment definitions (name for display, distance in kilometers)
+        const segmentDefinitions = [
+            { name: "100 m", distanceKm: 0.1 },
+            { name: "200 m", distanceKm: 0.2 },
+            { name: "400 m", distanceKm: 0.4 },
+            { name: "1/2 Mile", distanceKm: 0.5 * 1.60934 }, // 0.80467 km
+            { name: "1 km", distanceKm: 1.0 },
+            { name: "1 Mile", distanceKm: 1.60934 },        // 1.60934 km
+            { name: "2 km", distanceKm: 2.0 },
+            { name: "3 km", distanceKm: 3.0 },
+            { name: "2 Miles", distanceKm: 2 * 1.60934 },   // 3.21868 km
+            { name: "4 km", distanceKm: 4.0 },
+            { name: "3 Miles", distanceKm: 3 * 1.60934 },  // 4.828032 km 
+            { name: "5 km", distanceKm: 5.0 },
+            { name: "6 km", distanceKm: 6.0 },
+            { name: "4 Miles", distanceKm: 4 * 1.60934 },  // 6.437376 km 
+        ];
+
+        // Event listener for file input change
+        gpxFileInput.addEventListener('change', (event) => {
+            messageArea.textContent = ''; // Clear previous messages
+            resultsArea.classList.add('hidden'); // Hide previous results
+            noSegmentsFoundMessage.classList.add('hidden'); // Hide no segments message
+            if (event.target.files.length > 0) {
+                fileNameDisplay.textContent = `Selected: ${event.target.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = '';
+            }
+        });
+
+        // Event listener for the analyze button click
+        analyzeButton.addEventListener('click', () => {
+            const file = gpxFileInput.files[0];
+            if (!file) {
+                messageArea.textContent = 'Please select a GPX file first.';
+                return;
+            }
+
+            // Disable button and show spinner during processing
+            analyzeButton.disabled = true;
+            loadingSpinner.classList.remove('hidden');
+            messageArea.textContent = ''; // Clear previous messages
+            resultsArea.classList.add('hidden'); // Hide results table initially
+            resultsTableBody.innerHTML = ''; // Clear previous results from table
+            noSegmentsFoundMessage.classList.add('hidden');
+
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const gpxContent = e.target.result;
+                    const points = parseGPX(gpxContent); // Parse the GPX content
+
+                    if (!points || points.length < 2) {
+                        messageArea.textContent = 'Could not parse track points or track is too short.';
+                        resetUI(); // Re-enable button and hide spinner
+                        return;
+                    }
+
+                    // Use a timeout to allow UI to update (show spinner) before heavy computation
+                    setTimeout(() => {
+                        const allResults = [];
+                        let foundAnySegment = false; // Flag to check if any segment was successfully analyzed
+                        // Iterate over each defined segment and find the fastest time
+                        segmentDefinitions.forEach(segmentDef => {
+                            const result = findFastestSegment(points, segmentDef.distanceKm);
+                            allResults.push({ name: segmentDef.name, result: result });
+                            if (result) { // If a result is found (not null)
+                                foundAnySegment = true;
+                            }
+                        });
+                        displayMultipleResults(allResults, foundAnySegment); // Display all results in the table
+                        resetUI(); // Re-enable button and hide spinner
+                    }, 50); // Small delay for UI update
+
+                } catch (error) {
+                    console.error("Error processing file:", error);
+                    messageArea.textContent = `Error: ${error.message}`;
+                    resetUI();
+                }
+            };
+            reader.onerror = () => {
+                messageArea.textContent = 'Error reading file.';
+                resetUI();
+            };
+            reader.readAsText(file); // Read the file as text
+        });
+
+        // Function to reset UI elements (button, spinner)
+        function resetUI() {
+            analyzeButton.disabled = false;
+            loadingSpinner.classList.add('hidden');
+        }
+
+        /**
+         * Parses GPX XML content and extracts track points (latitude, longitude, time).
+         * @param {string} gpxString - The GPX data as a string.
+         * @returns {Array<{lat: number, lon: number, time: Date}>|null} Array of point objects or null on error.
+         */
+        function parseGPX(gpxString) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(gpxString, "application/xml");
+
+            // Check for XML parsing errors
+            const parserError = xmlDoc.getElementsByTagName("parsererror");
+            if (parserError.length > 0) {
+                console.error("XML Parsing Error:", parserError[0].textContent);
+                throw new Error("Invalid GPX file format. Check console for details.");
+            }
+
+            const trackpoints = xmlDoc.getElementsByTagName('trkpt');
+            if (trackpoints.length === 0) {
+                throw new Error("No track points (<trkpt>) found in GPX file.");
+            }
+
+            const points = [];
+            for (let i = 0; i < trackpoints.length; i++) {
+                const tp = trackpoints[i];
+                const lat = parseFloat(tp.getAttribute('lat'));
+                const lon = parseFloat(tp.getAttribute('lon'));
+                const timeElement = tp.getElementsByTagName('time')[0];
+                
+                // Validate data for each trackpoint
+                if (isNaN(lat) || isNaN(lon) || !timeElement) {
+                    console.warn("Skipping trackpoint with missing lat, lon, or time:", tp.outerHTML);
+                    continue; // Skip this point if data is invalid
+                }
+                const time = new Date(timeElement.textContent);
+                if (isNaN(time.getTime())) { // Check if date is valid
+                     console.warn("Skipping trackpoint with invalid time:", timeElement.textContent);
+                    continue; // Skip this point if time is invalid
+                }
+                points.push({ lat, lon, time });
+            }
+             // Sort points by time to ensure correct order, crucial for segment calculation
+            points.sort((a, b) => a.time - b.time);
+            return points;
+        }
+
+        /**
+         * Calculates the Haversine distance between two geographic coordinates.
+         * @param {number} lat1 Latitude of the first point.
+         * @param {number} lon1 Longitude of the first point.
+         * @param {number} lat2 Latitude of the second point.
+         * @param {number} lon2 Longitude of the second point.
+         * @returns {number} Distance in kilometers.
+         */
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of the Earth in kilometers
+            const dLat = (lat2 - lat1) * Math.PI / 180; // Difference in latitude, in radians
+            const dLon = (lon2 - lon1) * Math.PI / 180; // Difference in longitude, in radians
+            const rLat1 = lat1 * Math.PI / 180; // Latitude of point 1, in radians
+            const rLat2 = lat2 * Math.PI / 180; // Latitude of point 2, in radians
+
+            // Haversine formula
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(rLat1) * Math.cos(rLat2) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in kilometers
+        }
+
+        /**
+         * Finds the fastest segment of a given target distance.
+         * This function iterates through all possible start points and then expands the segment
+         * point by point, interpolating the time if the target distance falls between two points.
+         * @param {Array<{lat: number, lon: number, time: Date}>} points - Array of track points, sorted by time.
+         * @param {number} targetDistanceKm - The target distance for the segment in kilometers.
+         * @returns {{fastestTime: number, totalDistanceKm: number}|null} Object with fastest time in seconds
+         * and total distance (which will be targetDistanceKm), or null if no segment is found.
+         */
+        function findFastestSegment(points, targetDistanceKm) {
+            let fastestOverallTimeSeconds = Infinity;
+
+            if (points.length < 2 || targetDistanceKm <= 0) {
+                return null; // Not enough points or invalid target distance
+            }
+
+            // Outer loop: 'i' is the starting point of a potential segment
+            for (let i = 0; i < points.length - 1; i++) {
+                let currentSegmentDistanceKm = 0; // Distance covered from point 'i'
+                
+                // Inner loop: 'j' expands the segment from 'i' to 'j'
+                for (let j = i + 1; j < points.length; j++) {
+                    const p_startOfLeg = points[j-1]; // The previous point in the segment
+                    const p_endOfLeg = points[j];     // The current point being added to the segment
+
+                    // Calculate distance and time for the small leg between p_startOfLeg and p_endOfLeg
+                    const legDistanceKm = haversineDistance(p_startOfLeg.lat, p_startOfLeg.lon, p_endOfLeg.lat, p_endOfLeg.lon);
+                    const legTimeSeconds = (p_endOfLeg.time.getTime() - p_startOfLeg.time.getTime()) / 1000;
+
+                    if (legTimeSeconds < 0) { 
+                        // This should ideally not happen if points are pre-sorted by time.
+                        console.warn("Negative time difference encountered between points. Check data integrity or sorting.", p_startOfLeg.time, p_endOfLeg.time);
+                        continue; // Skip this leg
+                    }
+                    
+                    const distanceAfterThisLegKm = currentSegmentDistanceKm + legDistanceKm;
+
+                    // Check if the current segment has reached or exceeded the target distance
+                    if (distanceAfterThisLegKm >= targetDistanceKm) {
+                        // Time elapsed from the start of the segment (point 'i') to p_startOfLeg
+                        const timeFromSegmentStartTo_p_startOfLeg_Seconds = (p_startOfLeg.time.getTime() - points[i].time.getTime()) / 1000;
+                        let currentSegmentTimeForTargetDistanceSeconds;
+
+                        if (legDistanceKm === 0) { 
+                            // If the current leg has zero distance (e.g., duplicate points or stationary)
+                            if (currentSegmentDistanceKm >= targetDistanceKm) {
+                                // If target distance was already met before this zero-distance leg
+                                currentSegmentTimeForTargetDistanceSeconds = timeFromSegmentStartTo_p_startOfLeg_Seconds;
+                            } else {
+                                // Cannot complete targetDistance with a zero-distance leg if not already met.
+                                // This path (starting at i and ending before j) cannot reach targetDistanceKm.
+                                break; // Break from inner loop (j), try next starting point 'i'
+                            }
+                        } else {
+                            // Interpolate time for the exact targetDistanceKm
+                            // Calculate how much more distance was needed from the current leg
+                            const distanceNeededFromThisLeg = targetDistanceKm - currentSegmentDistanceKm;
+                            // Calculate the fraction of the current leg needed to reach targetDistanceKm
+                            const fractionOfLegNeeded = distanceNeededFromThisLeg / legDistanceKm;
+                            // Calculate the time taken to cover that fraction of the leg
+                            const timeForNeededPartOfLegSeconds = fractionOfLegNeeded * legTimeSeconds;
+                            // Total time for the segment of targetDistanceKm
+                            currentSegmentTimeForTargetDistanceSeconds = timeFromSegmentStartTo_p_startOfLeg_Seconds + timeForNeededPartOfLegSeconds;
+                        }
+                        
+                        // Update fastest time if this segment is faster
+                        if (currentSegmentTimeForTargetDistanceSeconds < fastestOverallTimeSeconds) {
+                            fastestOverallTimeSeconds = currentSegmentTimeForTargetDistanceSeconds;
+                        }
+                        // Once a segment of targetDistanceKm is found and processed for starting point 'i',
+                        // break the inner loop to try the next starting point 'i+1'.
+                        break; 
+                    }
+                    // Add the leg's distance to the current segment's total distance
+                    currentSegmentDistanceKm = distanceAfterThisLegKm;
+                } // End of inner loop (j)
+            } // End of outer loop (i)
+
+            if (fastestOverallTimeSeconds === Infinity) {
+                return null; // No segment of targetDistanceKm found in the entire track
+            }
+            // The totalDistanceKm for which the fastestTime is calculated is exactly targetDistanceKm due to interpolation.
+            return { fastestTime: fastestOverallTimeSeconds, totalDistanceKm: targetDistanceKm };
+        }
+
+        /**
+         * Displays the results for multiple segments in a table.
+         * @param {Array<{name: string, result: {fastestTime: number, totalDistanceKm: number}|null}>} allResults - Array of results for each segment.
+         * @param {boolean} foundAnySegment - True if at least one segment was found and analyzed.
+         */
+        function displayMultipleResults(allResults, foundAnySegment) {
+            resultsTableBody.innerHTML = ''; // Clear previous results from the table body
+
+            if (!foundAnySegment) {
+                // If no segments were found (e.g., track too short for all defined segments)
+                noSegmentsFoundMessage.textContent = `No valid segments found. The track might be too short or data is insufficient.`;
+                noSegmentsFoundMessage.classList.remove('hidden');
+                resultsArea.classList.add('hidden'); // Keep table hidden if nothing to show
+                return;
+            }
+
+            // Populate the table with results
+            allResults.forEach(item => {
+                const row = resultsTableBody.insertRow(); // Create a new row
+                const cellName = row.insertCell();    // Cell for segment name
+                const cellTime = row.insertCell();    // Cell for fastest time
+                const cellPace = row.insertCell();    // Cell for average pace
+
+                cellName.textContent = item.name;
+                cellName.className = 'py-2 px-4 font-medium text-gray-900 whitespace-nowrap'; // Tailwind classes for styling
+
+                if (item.result && item.result.fastestTime !== Infinity) {
+                    // If a valid result exists for this segment
+                    const pacePerKm = item.result.fastestTime / item.result.totalDistanceKm; // Pace in seconds per km
+                    cellTime.textContent = formatDuration(item.result.fastestTime);
+                    cellPace.textContent = formatPace(pacePerKm);
+                } else {
+                    // If no result or an invalid result for this segment
+                    cellTime.textContent = 'N/A';
+                    cellPace.textContent = 'N/A';
+                }
+                cellTime.className = 'py-2 px-4'; // Tailwind classes
+                cellPace.className = 'py-2 px-4'; // Tailwind classes
+            });
+
+            resultsArea.classList.remove('hidden'); // Show the results table
+            messageArea.textContent = ''; // Clear any general error messages if results are shown
+            noSegmentsFoundMessage.classList.add('hidden'); // Hide the "no segments found" message
+        }
+
+        /**
+         * Formats total seconds into a MM:SS string.
+         * @param {number} totalSeconds - Duration in seconds.
+         * @returns {string} Formatted time string (e.g., "5:32").
+         */
+        function formatDuration(totalSeconds) {
+            if (isNaN(totalSeconds) || totalSeconds === Infinity || totalSeconds < 0) return "N/A";
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`; // Pad seconds with leading zero if needed
+        }
+
+        /**
+         * Formats seconds per kilometer into a MM:SS /km pace string.
+         * @param {number} secondsPerKm - Pace in seconds per kilometer.
+         * @returns {string} Formatted pace string (e.g., "4:15 /km").
+         */
+        function formatPace(secondsPerKm) {
+            if (isNaN(secondsPerKm) || secondsPerKm === Infinity || secondsPerKm < 0) return "N/A";
+            return `${formatDuration(secondsPerKm)} /km`;
+        }
+
+    </script>
+</body>
+</html>
