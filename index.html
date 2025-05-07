@@ -112,20 +112,76 @@
         // Segment definitions (name for display, distance in kilometers)
         // User-provided list of segments
         const segmentDefinitions = [
-            { name: "100 m", distanceKm: 0.1 },
-            { name: "200 m", distanceKm: 0.2 },
-            { name: "400 m", distanceKm: 0.4 },
-            { name: "1/2 Mile", distanceKm: 0.5 * 1.60934 }, // 0.80467 km
-            { name: "1 km", distanceKm: 1.0 },
-            { name: "1 Mile", distanceKm: 1.60934 },        // 1.60934 km
-            { name: "2 km", distanceKm: 2.0 },
-            { name: "3 km", distanceKm: 3.0 },
-            { name: "2 Miles", distanceKm: 2 * 1.60934 },   // 3.21868 km
-            { name: "4 km", distanceKm: 4.0 },
-            { name: "3 Miles", distanceKm: 3 * 1.60934 },  // 4.828032 km 
-            { name: "5 km", distanceKm: 5.0 },
-            { name: "6 km", distanceKm: 6.0 },
-            { name: "4 Miles", distanceKm: 4 * 1.60934 },  // 6.437376 km 
+                   { name: "1 km", distanceKm: 1.0 },
+                   { name: "1 Mile", distanceKm: 1.60934 }, // 1.60934 km
+                   { name: "2 km", distanceKm: 2.0 },
+                   { name: "3 km", distanceKm: 3.0 },
+                   { name: "2 Miles", distanceKm: 2 * 1.60934 }, // 3.21868 km
+                   { name: "4 km", distanceKm: 4.0 },
+                   { name: "3 Miles", distanceKm: 3 * 1.60934 }, // 4.82802 km
+                   { name: "5 km", distanceKm: 5.0 },
+                   { name: "6 km", distanceKm: 6.0 },
+                   { name: "4 Miles", distanceKm: 4 * 1.60934 }, // 6.43736 km
+                   { name: "7 km", distanceKm: 7.0 },
+                   { name: "8 km", distanceKm: 8.0 },
+                   { name: "5 Miles", distanceKm: 5 * 1.60934 }, // 8.04670 km
+                   { name: "9 km", distanceKm: 9.0 },
+                   { name: "6 Miles", distanceKm: 6 * 1.60934 }, // 9.65604 km
+                   { name: "10 km", distanceKm: 10.0 },
+                   { name: "11 km", distanceKm: 11.0 },
+                   { name: "7 Miles", distanceKm: 7 * 1.60934 }, // 11.26538 km
+                   { name: "12 km", distanceKm: 12.0 },
+                   { name: "8 Miles", distanceKm: 8 * 1.60934 }, // 12.87472 km
+                   { name: "13 km", distanceKm: 13.0 },
+                   { name: "14 km", distanceKm: 14.0 },
+                   { name: "9 Miles", distanceKm: 9 * 1.60934 }, // 14.48406 km
+                   { name: "15 km", distanceKm: 15.0 },
+                   { name: "16 km", distanceKm: 16.0 },
+                   { name: "10 Miles", distanceKm: 10 * 1.60934 }, // 16.09340 km
+                   { name: "17 km", distanceKm: 17.0 },
+                   { name: "11 Miles", distanceKm: 11 * 1.60934 }, // 17.70274 km
+                   { name: "18 km", distanceKm: 18.0 },
+                   { name: "19 km", distanceKm: 19.0 },
+                   { name: "12 Miles", distanceKm: 12 * 1.60934 }, // 19.31208 km
+                   { name: "20 km", distanceKm: 20.0 },
+                   { name: "13 Miles", distanceKm: 13 * 1.60934 }, // 20.92142 km
+                   { name: "21 km", distanceKm: 21.0 },
+                   { name: "21.0975 km (Half marathon)", distanceKm: 21.0975 },
+                   { name: "22 km", distanceKm: 22.0 },
+                   { name: "14 Miles", distanceKm: 14 * 1.60934 }, // 22.53076 km
+                   { name: "23 km", distanceKm: 23.0 },
+                   { name: "24 km", distanceKm: 24.0 },
+                   { name: "15 Miles", distanceKm: 15 * 1.60934 }, // 24.14010 km
+                   { name: "25 km", distanceKm: 25.0 },
+                   { name: "16 Miles", distanceKm: 16 * 1.60934 }, // 25.74944 km
+                   { name: "26 km", distanceKm: 26.0 },
+                   { name: "27 km", distanceKm: 27.0 },
+                   { name: "17 Miles", distanceKm: 17 * 1.60934 }, // 27.35878 km
+                   { name: "28 km", distanceKm: 28.0 },
+                   { name: "18 Miles", distanceKm: 18 * 1.60934 }, // 28.96812 km
+                   { name: "29 km", distanceKm: 29.0 },
+                   { name: "30 km", distanceKm: 30.0 },
+                   { name: "19 Miles", distanceKm: 19 * 1.60934 }, // 30.57746 km
+                   { name: "31 km", distanceKm: 31.0 },
+                   { name: "32 km", distanceKm: 32.0 },
+                   { name: "20 Miles", distanceKm: 20 * 1.60934 }, // 32.18680 km
+                   { name: "33 km", distanceKm: 33.0 },
+                   { name: "21 Miles", distanceKm: 21 * 1.60934 }, // 33.79614 km
+                   { name: "34 km", distanceKm: 34.0 },
+                   { name: "35 km", distanceKm: 35.0 },
+                   { name: "22 Miles", distanceKm: 22 * 1.60934 }, // 35.40548 km
+                   { name: "36 km", distanceKm: 36.0 },
+                   { name: "37 km", distanceKm: 37.0 },
+                   { name: "23 Miles", distanceKm: 23 * 1.60934 }, // 37.01482 km
+                   { name: "38 km", distanceKm: 38.0 },
+                   { name: "24 Miles", distanceKm: 24 * 1.60934 }, // 38.62416 km
+                   { name: "39 km", distanceKm: 39.0 },
+                   { name: "40 km", distanceKm: 40.0 },
+                   { name: "25 Miles", distanceKm: 25 * 1.60934 }, // 40.23350 km
+                   { name: "41 km", distanceKm: 41.0 },
+                   { name: "26 Miles", distanceKm: 26 * 1.60934 }, // 41.84284 km
+                   { name: "42 km", distanceKm: 42.0 },
+                   { name: "42.195 km (Marathon)", distanceKm: 42.195 },
         ];
 
         // Event listener for file input change
