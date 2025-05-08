@@ -9,7 +9,6 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Custom styles for file input button */
         .file-input-button {
             background-color: #4A5568; /* gray-700 */
             color: white;
@@ -17,7 +16,7 @@
             border-radius: 0.375rem; /* rounded-md */
             cursor: pointer;
             transition: background-color 0.3s ease;
-            display: inline-block; 
+            display: inline-block;
         }
         .file-input-button:hover {
             background-color: #2D3748; /* gray-800 */
@@ -35,21 +34,22 @@
             margin: 20px auto; /* Center the spinner */
         }
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        /* Ensure table has nice spacing and borders */
         #resultsTable th, #resultsTable td {
-            padding: 0.75rem; /* p-3 */
+            padding: 0.75rem;
             border-bottom-width: 1px;
             border-color: #E5E7EB; /* gray-200 */
         }
         #resultsTable th {
             background-color: #F9FAFB; /* gray-50 */
+        }
+        #progressBarContainer { /* Used for potential future styling, not directly targeted now */
+            transition: opacity 0.3s ease-in-out;
+        }
+        #progressBar {
+            transition: width 0.2s ease-out;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -71,8 +71,14 @@
             Analyze Track
         </button>
 
+        <div id="progressDisplayArea" class="mt-4 hidden">
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="progressText" class="text-center text-xs text-gray-500 mt-1"></p>
+        </div>
+        
         <div id="loadingSpinner" class="hidden spinner"></div>
-
         <div id="messageArea" class="mt-4 text-center text-red-500 font-medium"></div>
 
         <div id="resultsArea" class="mt-6 hidden">
@@ -86,8 +92,7 @@
                             <th scope="col" class="py-3 px-4">Avg. Pace</th>
                         </tr>
                     </thead>
-                    <tbody id="resultsTableBody">
-                        </tbody>
+                    <tbody id="resultsTableBody"></tbody>
                 </table>
             </div>
             <p id="noSegmentsFoundMessage" class="text-center text-gray-500 mt-4 hidden"></p>
@@ -108,87 +113,56 @@
         const fileNameDisplay = document.getElementById('fileName');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const noSegmentsFoundMessage = document.getElementById('noSegmentsFoundMessage');
+        const progressDisplayArea = document.getElementById('progressDisplayArea');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
 
-        // Segment definitions (name for display, distance in kilometers)
-        // User-provided list of segments
         const segmentDefinitions = [
-                   { name: "1 km", distanceKm: 1.0 },
-                   { name: "1 Mile", distanceKm: 1.60934 }, // 1.60934 km
-                   { name: "2 km", distanceKm: 2.0 },
-                   { name: "3 km", distanceKm: 3.0 },
-                   { name: "2 Miles", distanceKm: 2 * 1.60934 }, // 3.21868 km
-                   { name: "4 km", distanceKm: 4.0 },
-                   { name: "3 Miles", distanceKm: 3 * 1.60934 }, // 4.82802 km
-                   { name: "5 km", distanceKm: 5.0 },
-                   { name: "6 km", distanceKm: 6.0 },
-                   { name: "4 Miles", distanceKm: 4 * 1.60934 }, // 6.43736 km
-                   { name: "7 km", distanceKm: 7.0 },
-                   { name: "8 km", distanceKm: 8.0 },
-                   { name: "5 Miles", distanceKm: 5 * 1.60934 }, // 8.04670 km
-                   { name: "9 km", distanceKm: 9.0 },
-                   { name: "6 Miles", distanceKm: 6 * 1.60934 }, // 9.65604 km
-                   { name: "10 km", distanceKm: 10.0 },
-                   { name: "11 km", distanceKm: 11.0 },
-                   { name: "7 Miles", distanceKm: 7 * 1.60934 }, // 11.26538 km
-                   { name: "12 km", distanceKm: 12.0 },
-                   { name: "8 Miles", distanceKm: 8 * 1.60934 }, // 12.87472 km
-                   { name: "13 km", distanceKm: 13.0 },
-                   { name: "14 km", distanceKm: 14.0 },
-                   { name: "9 Miles", distanceKm: 9 * 1.60934 }, // 14.48406 km
-                   { name: "15 km", distanceKm: 15.0 },
-                   { name: "16 km", distanceKm: 16.0 },
-                   { name: "10 Miles", distanceKm: 10 * 1.60934 }, // 16.09340 km
-                   { name: "17 km", distanceKm: 17.0 },
-                   { name: "11 Miles", distanceKm: 11 * 1.60934 }, // 17.70274 km
-                   { name: "18 km", distanceKm: 18.0 },
-                   { name: "19 km", distanceKm: 19.0 },
-                   { name: "12 Miles", distanceKm: 12 * 1.60934 }, // 19.31208 km
-                   { name: "20 km", distanceKm: 20.0 },
-                   { name: "13 Miles", distanceKm: 13 * 1.60934 }, // 20.92142 km
-                   { name: "21 km", distanceKm: 21.0 },
-                   { name: "21.0975 km (Half marathon)", distanceKm: 21.0975 },
-                   { name: "22 km", distanceKm: 22.0 },
-                   { name: "14 Miles", distanceKm: 14 * 1.60934 }, // 22.53076 km
-                   { name: "23 km", distanceKm: 23.0 },
-                   { name: "24 km", distanceKm: 24.0 },
-                   { name: "15 Miles", distanceKm: 15 * 1.60934 }, // 24.14010 km
-                   { name: "25 km", distanceKm: 25.0 },
-                   { name: "16 Miles", distanceKm: 16 * 1.60934 }, // 25.74944 km
-                   { name: "26 km", distanceKm: 26.0 },
-                   { name: "27 km", distanceKm: 27.0 },
-                   { name: "17 Miles", distanceKm: 17 * 1.60934 }, // 27.35878 km
-                   { name: "28 km", distanceKm: 28.0 },
-                   { name: "18 Miles", distanceKm: 18 * 1.60934 }, // 28.96812 km
-                   { name: "29 km", distanceKm: 29.0 },
-                   { name: "30 km", distanceKm: 30.0 },
-                   { name: "19 Miles", distanceKm: 19 * 1.60934 }, // 30.57746 km
-                   { name: "31 km", distanceKm: 31.0 },
-                   { name: "32 km", distanceKm: 32.0 },
-                   { name: "20 Miles", distanceKm: 20 * 1.60934 }, // 32.18680 km
-                   { name: "33 km", distanceKm: 33.0 },
-                   { name: "21 Miles", distanceKm: 21 * 1.60934 }, // 33.79614 km
-                   { name: "34 km", distanceKm: 34.0 },
-                   { name: "35 km", distanceKm: 35.0 },
-                   { name: "22 Miles", distanceKm: 22 * 1.60934 }, // 35.40548 km
-                   { name: "36 km", distanceKm: 36.0 },
-                   { name: "37 km", distanceKm: 37.0 },
-                   { name: "23 Miles", distanceKm: 23 * 1.60934 }, // 37.01482 km
-                   { name: "38 km", distanceKm: 38.0 },
-                   { name: "24 Miles", distanceKm: 24 * 1.60934 }, // 38.62416 km
-                   { name: "39 km", distanceKm: 39.0 },
-                   { name: "40 km", distanceKm: 40.0 },
-                   { name: "25 Miles", distanceKm: 25 * 1.60934 }, // 40.23350 km
-                   { name: "41 km", distanceKm: 41.0 },
-                   { name: "26 Miles", distanceKm: 26 * 1.60934 }, // 41.84284 km
-                   { name: "42 km", distanceKm: 42.0 },
-                   { name: "42.195 km (Marathon)", distanceKm: 42.195 },
+            { name: "100 m", distanceKm: 0.1 }, { name: "200 m", distanceKm: 0.2 },
+            { name: "400 m", distanceKm: 0.4 }, { name: "1/4 Mile", distanceKm: 0.402336 },
+            { name: "800 m", distanceKm: 0.8 }, { name: "1/2 Mile", distanceKm: 0.804672 },
+            { name: "1 km", distanceKm: 1.0 }, { name: "1 Mile", distanceKm: 1.60934 },
+            { name: "2 km", distanceKm: 2.0 }, { name: "3 km", distanceKm: 3.0 },
+            { name: "2 Miles", distanceKm: 3.21868 }, { name: "4 km", distanceKm: 4.0 },
+            { name: "3 Miles", distanceKm: 4.82802 }, { name: "5 km", distanceKm: 5.0 },
+            { name: "6 km", distanceKm: 6.0 }, { name: "4 Miles", distanceKm: 6.43736 },
+            { name: "7 km", distanceKm: 7.0 }, { name: "8 km", distanceKm: 8.0 },
+            { name: "5 Miles", distanceKm: 8.04670 }, { name: "9 km", distanceKm: 9.0 },
+            { name: "6 Miles", distanceKm: 9.65604 }, { name: "10 km", distanceKm: 10.0 },
+            { name: "11 km", distanceKm: 11.0 }, { name: "7 Miles", distanceKm: 11.26538 },
+            { name: "12 km", distanceKm: 12.0 }, { name: "8 Miles", distanceKm: 12.87472 },
+            { name: "13 km", distanceKm: 13.0 }, { name: "14 km", distanceKm: 14.0 },
+            { name: "9 Miles", distanceKm: 14.48406 }, { name: "15 km", distanceKm: 15.0 },
+            { name: "16 km", distanceKm: 16.0 }, { name: "10 Miles", distanceKm: 16.09340 },
+            { name: "17 km", distanceKm: 17.0 }, { name: "11 Miles", distanceKm: 17.70274 },
+            { name: "18 km", distanceKm: 18.0 }, { name: "19 km", distanceKm: 19.0 },
+            { name: "12 Miles", distanceKm: 19.31208 }, { name: "20 km", distanceKm: 20.0 },
+            { name: "13 Miles", distanceKm: 20.92142 }, { name: "21 km", distanceKm: 21.0 },
+            { name: "21.0975 km (Half marathon)", distanceKm: 21.0975 }, { name: "22 km", distanceKm: 22.0 },
+            { name: "14 Miles", distanceKm: 22.53076 }, { name: "23 km", distanceKm: 23.0 },
+            { name: "24 km", distanceKm: 24.0 }, { name: "15 Miles", distanceKm: 24.14010 },
+            { name: "25 km", distanceKm: 25.0 }, { name: "16 Miles", distanceKm: 25.74944 },
+            { name: "26 km", distanceKm: 26.0 }, { name: "27 km", distanceKm: 27.0 },
+            { name: "17 Miles", distanceKm: 27.35878 }, { name: "28 km", distanceKm: 28.0 },
+            { name: "18 Miles", distanceKm: 28.96812 }, { name: "29 km", distanceKm: 29.0 },
+            { name: "30 km", distanceKm: 30.0 }, { name: "19 Miles", distanceKm: 30.57746 },
+            { name: "31 km", distanceKm: 31.0 }, { name: "32 km", distanceKm: 32.0 },
+            { name: "20 Miles", distanceKm: 32.18680 }, { name: "33 km", distanceKm: 33.0 },
+            { name: "21 Miles", distanceKm: 33.79614 }, { name: "34 km", distanceKm: 34.0 },
+            { name: "35 km", distanceKm: 35.0 }, { name: "22 Miles", distanceKm: 35.40548 },
+            { name: "36 km", distanceKm: 36.0 }, { name: "37 km", distanceKm: 37.0 },
+            { name: "23 Miles", distanceKm: 37.01482 }, { name: "38 km", distanceKm: 38.0 },
+            { name: "24 Miles", distanceKm: 38.62416 }, { name: "39 km", distanceKm: 39.0 },
+            { name: "40 km", distanceKm: 40.0 }, { name: "25 Miles", distanceKm: 40.23350 },
+            { name: "41 km", distanceKm: 41.0 }, { name: "26 Miles", distanceKm: 41.84284 },
+            { name: "42 km", distanceKm: 42.0 }, { name: "42.195 km (Marathon)", distanceKm: 42.195 },
         ];
 
-        // Event listener for file input change
         gpxFileInput.addEventListener('change', (event) => {
-            messageArea.textContent = ''; 
-            resultsArea.classList.add('hidden'); 
-            noSegmentsFoundMessage.classList.add('hidden'); 
+            messageArea.textContent = '';
+            resultsArea.classList.add('hidden');
+            noSegmentsFoundMessage.classList.add('hidden');
+            progressDisplayArea.classList.add('hidden');
             if (event.target.files.length > 0) {
                 fileNameDisplay.textContent = `Selected: ${event.target.files[0].name}`;
             } else {
@@ -196,8 +170,7 @@
             }
         });
 
-        // Event listener for the analyze button click
-        analyzeButton.addEventListener('click', () => {
+        analyzeButton.addEventListener('click', async () => {
             const file = gpxFileInput.files[0];
             if (!file) {
                 messageArea.textContent = 'Please select a GPX file first.';
@@ -206,86 +179,114 @@
 
             analyzeButton.disabled = true;
             loadingSpinner.classList.remove('hidden');
-            messageArea.textContent = ''; 
-            resultsArea.classList.add('hidden'); 
-            resultsTableBody.innerHTML = ''; 
+            messageArea.textContent = '';
+            resultsArea.classList.add('hidden');
+            resultsTableBody.innerHTML = '';
             noSegmentsFoundMessage.classList.add('hidden');
-
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Initializing...';
+            progressDisplayArea.classList.remove('hidden');
 
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
+                let analysisSuccess = false;
                 try {
                     const gpxContent = e.target.result;
-                    const points = parseGPX(gpxContent); 
+                    const points = parseGPX(gpxContent);
 
                     if (!points || points.length < 2) {
                         messageArea.textContent = 'Could not parse track points or track is too short.';
-                        resetUI(); 
-                        return;
+                        return; 
                     }
+                    
+                    loadingSpinner.classList.add('hidden');
+                    await new Promise(resolve => setTimeout(resolve, 20));
 
-                    setTimeout(() => {
-                        const allResults = [];
-                        let foundAnySegment = false; 
-                        segmentDefinitions.forEach(segmentDef => {
-                            const result = findFastestSegment(points, segmentDef.distanceKm);
-                            allResults.push({ name: segmentDef.name, result: result });
-                            if (result) { 
-                                foundAnySegment = true;
-                            }
-                        });
-                        displayMultipleResults(allResults, foundAnySegment); 
-                        resetUI(); 
-                    }, 50); 
+                    const allResults = [];
+                    let foundAnySegment = false;
+                    const totalSegmentsToAnalyze = segmentDefinitions.length;
+
+                    for (let i = 0; i < totalSegmentsToAnalyze; i++) {
+                        const segmentDef = segmentDefinitions[i];
+                        const progressPercentage = Math.round(((i) / totalSegmentsToAnalyze) * 100);
+                        progressBar.style.width = `${progressPercentage}%`;
+                        progressText.textContent = `Analyzing: ${segmentDef.name} (${progressPercentage}%)`;
+                        
+                        await new Promise(resolve => setTimeout(resolve, 0)); 
+
+                        const result = findFastestSegmentOptimized(points, segmentDef.distanceKm);
+                        allResults.push({ name: segmentDef.name, result: result });
+                        if (result) {
+                            foundAnySegment = true;
+                        }
+                    }
+                    
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Finalizing results... (100%)';
+                    await new Promise(resolve => setTimeout(resolve, 50));
+
+                    displayMultipleResults(allResults, foundAnySegment);
+                    analysisSuccess = true;
 
                 } catch (error) {
                     console.error("Error processing file:", error);
-                    messageArea.textContent = `Error: ${error.message}`;
-                    resetUI();
+                    messageArea.textContent = `Error: ${error.message || 'An unknown error occurred.'}`;
+                    progressText.textContent = 'Analysis failed.';
+                } finally {
+                    resetUI(); 
+                    if (analysisSuccess) {
+                        progressText.textContent = 'Analysis complete!'; // This will be overridden by resetUI or hidden
+                        setTimeout(() => {
+                           if(progressDisplayArea) progressDisplayArea.classList.add('hidden');
+                        }, 2000); 
+                    } else {
+                        // If error, resetUI hides progressDisplayArea. Error message is in messageArea.
+                    }
                 }
             };
             reader.onerror = () => {
                 messageArea.textContent = 'Error reading file.';
                 resetUI();
+                if(progressDisplayArea) progressDisplayArea.classList.add('hidden');
             };
-            reader.readAsText(file); 
+            reader.readAsText(file);
         });
 
         function resetUI() {
             analyzeButton.disabled = false;
-            loadingSpinner.classList.add('hidden');
+            loadingSpinner.classList.add('hidden'); 
+            if (progressDisplayArea) progressDisplayArea.classList.add('hidden');
         }
 
         function parseGPX(gpxString) {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(gpxString, "application/xml");
-
             const parserError = xmlDoc.getElementsByTagName("parsererror");
             if (parserError.length > 0) {
                 console.error("XML Parsing Error:", parserError[0].textContent);
                 throw new Error("Invalid GPX file format. Check console for details.");
             }
+            let pointNodes = xmlDoc.getElementsByTagName('trkpt');
+            if (pointNodes.length === 0) pointNodes = xmlDoc.getElementsByTagName('rtept');
+            if (pointNodes.length === 0) throw new Error("No track points (<trkpt> or <rtept>) found.");
+            return processPointNodes(pointNodes);
+        }
 
-            const trackpoints = xmlDoc.getElementsByTagName('trkpt');
-            if (trackpoints.length === 0) {
-                throw new Error("No track points (<trkpt>) found in GPX file.");
-            }
-
+        function processPointNodes(nodes) {
             const points = [];
-            for (let i = 0; i < trackpoints.length; i++) {
-                const tp = trackpoints[i];
-                const lat = parseFloat(tp.getAttribute('lat'));
-                const lon = parseFloat(tp.getAttribute('lon'));
-                const timeElement = tp.getElementsByTagName('time')[0];
-                
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                const lat = parseFloat(node.getAttribute('lat'));
+                const lon = parseFloat(node.getAttribute('lon'));
+                const timeElement = node.getElementsByTagName('time')[0];
                 if (isNaN(lat) || isNaN(lon) || !timeElement) {
-                    console.warn("Skipping trackpoint with missing lat, lon, or time:", tp.outerHTML);
-                    continue; 
+                    console.warn("Skipping point with missing lat, lon, or time:", node.outerHTML);
+                    continue;
                 }
                 const time = new Date(timeElement.textContent);
-                if (isNaN(time.getTime())) { 
-                     console.warn("Skipping trackpoint with invalid time:", timeElement.textContent);
-                    continue; 
+                if (isNaN(time.getTime())) {
+                    console.warn("Skipping point with invalid time:", timeElement.textContent);
+                    continue;
                 }
                 points.push({ lat, lon, time });
             }
@@ -295,147 +296,140 @@
 
         function haversineDistance(lat1, lon1, lat2, lon2) {
             const R = 6371; 
-            const dLat = (lat2 - lat1) * Math.PI / 180; 
-            const dLon = (lon2 - lon1) * Math.PI / 180; 
-            const rLat1 = lat1 * Math.PI / 180; 
-            const rLat2 = lat2 * Math.PI / 180; 
-
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const rLat1 = lat1 * Math.PI / 180;
+            const rLat2 = lat2 * Math.PI / 180;
             const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                       Math.cos(rLat1) * Math.cos(rLat2) *
                       Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; 
+            return R * c;
         }
 
-        function findFastestSegment(points, targetDistanceKm) {
-            let fastestOverallTimeSeconds = Infinity;
-
-            if (points.length < 2 || targetDistanceKm <= 0) {
-                return null; 
+        function findFastestSegmentOptimized(points, targetDistanceKm) {
+            if (!points || points.length < 2 || targetDistanceKm <= 0) {
+                return null;
             }
 
-            for (let i = 0; i < points.length - 1; i++) {
-                let currentSegmentDistanceKm = 0; 
-                
-                for (let j = i + 1; j < points.length; j++) {
-                    const p_startOfLeg = points[j-1]; 
-                    const p_endOfLeg = points[j];     
+            const legs = [];
+            for (let k = 0; k < points.length - 1; k++) {
+                const dist = haversineDistance(points[k].lat, points[k].lon, points[k+1].lat, points[k+1].lon);
+                const timeSeconds = (points[k+1].time.getTime() - points[k].time.getTime()) / 1000;
+                legs.push({ dist: dist, time: timeSeconds < 0 ? 0 : timeSeconds });
+            }
 
-                    const legDistanceKm = haversineDistance(p_startOfLeg.lat, p_startOfLeg.lon, p_endOfLeg.lat, p_endOfLeg.lon);
-                    const legTimeSeconds = (p_endOfLeg.time.getTime() - p_startOfLeg.time.getTime()) / 1000;
+            if (legs.length === 0) return null;
 
-                    if (legTimeSeconds < 0) { 
-                        console.warn("Negative time difference encountered between points. Check data integrity or sorting.", p_startOfLeg.time, p_endOfLeg.time);
-                        continue; 
+            let minOverallTimeSeconds = Infinity;
+            let currentWindowDistKm = 0;
+            let currentWindowTimeSeconds = 0;
+            let windowLeftLegIndex = 0; 
+
+            for (let windowRightLegIndex = 0; windowRightLegIndex < legs.length; windowRightLegIndex++) {
+                currentWindowDistKm += legs[windowRightLegIndex].dist;
+                currentWindowTimeSeconds += legs[windowRightLegIndex].time;
+
+                while (currentWindowDistKm >= targetDistanceKm) {
+                    let interpolatedTimeForThisWindow = Infinity; // Assume invalid by default
+                    const excessDistKm = currentWindowDistKm - targetDistanceKm;
+
+                    if (excessDistKm === 0) { // Exact match
+                        interpolatedTimeForThisWindow = currentWindowTimeSeconds;
+                    } else { // excessDistKm > 0, requires interpolation by shortening the start of the window
+                        const firstLegInWindow = legs[windowLeftLegIndex];
+                        if (firstLegInWindow.dist > 0 && excessDistKm <= firstLegInWindow.dist) {
+                            // The first leg of the current window can account for all the excess distance.
+                            const fractionOfLegLToRemove = excessDistKm / firstLegInWindow.dist;
+                            const timeOfLegLToRemove = fractionOfLegLToRemove * firstLegInWindow.time;
+                            interpolatedTimeForThisWindow = currentWindowTimeSeconds - timeOfLegLToRemove;
+                        }
+                        // If firstLegInWindow.dist is 0 (and excessDistKm > 0), OR
+                        // if firstLegInWindow.dist > 0 but excessDistKm > firstLegInWindow.dist (leg is too short),
+                        // then this specific window (starting at windowLeftLegIndex) is not a candidate for this interpolation method.
+                        // interpolatedTimeForThisWindow remains Infinity. The loop will shrink windowLeftLegIndex.
                     }
                     
-                    const distanceAfterThisLegKm = currentSegmentDistanceKm + legDistanceKm;
-
-                    if (distanceAfterThisLegKm >= targetDistanceKm) {
-                        const timeFromSegmentStartTo_p_startOfLeg_Seconds = (p_startOfLeg.time.getTime() - points[i].time.getTime()) / 1000;
-                        let currentSegmentTimeForTargetDistanceSeconds;
-
-                        if (legDistanceKm === 0) { 
-                            if (currentSegmentDistanceKm >= targetDistanceKm) {
-                                currentSegmentTimeForTargetDistanceSeconds = timeFromSegmentStartTo_p_startOfLeg_Seconds;
-                            } else {
-                                break; 
-                            }
+                    if (interpolatedTimeForThisWindow < minOverallTimeSeconds) {
+                         // Basic sanity check, though with correct logic, time should be non-negative.
+                        if (interpolatedTimeForThisWindow < 0) {
+                             console.warn("Negative interpolated time calculated:", interpolatedTimeForThisWindow, 
+                                         { currentT: currentWindowTimeSeconds, excessD: excessDistKm, 
+                                           legL_dist: legs[windowLeftLegIndex].dist, legL_time: legs[windowLeftLegIndex].time });
                         } else {
-                            const distanceNeededFromThisLeg = targetDistanceKm - currentSegmentDistanceKm;
-                            const fractionOfLegNeeded = distanceNeededFromThisLeg / legDistanceKm;
-                            const timeForNeededPartOfLegSeconds = fractionOfLegNeeded * legTimeSeconds;
-                            currentSegmentTimeForTargetDistanceSeconds = timeFromSegmentStartTo_p_startOfLeg_Seconds + timeForNeededPartOfLegSeconds;
+                            minOverallTimeSeconds = interpolatedTimeForThisWindow;
                         }
-                        
-                        if (currentSegmentTimeForTargetDistanceSeconds < fastestOverallTimeSeconds) {
-                            fastestOverallTimeSeconds = currentSegmentTimeForTargetDistanceSeconds;
-                        }
+                    }
+
+                    // Shrink window from the left
+                    currentWindowDistKm -= legs[windowLeftLegIndex].dist;
+                    currentWindowTimeSeconds -= legs[windowLeftLegIndex].time;
+                    windowLeftLegIndex++;
+
+                    if (windowLeftLegIndex > windowRightLegIndex && currentWindowDistKm < targetDistanceKm) {
                         break; 
                     }
-                    currentSegmentDistanceKm = distanceAfterThisLegKm;
-                } 
-            } 
-
-            if (fastestOverallTimeSeconds === Infinity) {
-                return null; 
+                }
             }
-            return { fastestTime: fastestOverallTimeSeconds, totalDistanceKm: targetDistanceKm };
+            return minOverallTimeSeconds === Infinity ? null : { fastestTime: minOverallTimeSeconds, totalDistanceKm: targetDistanceKm };
         }
 
-        /**
-         * Displays the results for multiple segments in a table.
-         * Only rows for which a valid time was found will be displayed.
-         * @param {Array<{name: string, result: {fastestTime: number, totalDistanceKm: number}|null}>} allResults - Array of results for each segment.
-         * @param {boolean} foundAnySegmentInitially - True if at least one segment definition yielded a non-null result object from findFastestSegment.
-         */
-        function displayMultipleResults(allResults, foundAnySegmentInitially) {
-            resultsTableBody.innerHTML = ''; // Clear previous results from the table body
-            let actualRowsAdded = 0; // Counter for rows actually added to the table
+        function displayMultipleResults(allResults, foundAnyValidSegment) {
+            resultsTableBody.innerHTML = '';
+            let actualRowsAdded = 0;
 
-            // If foundAnySegmentInitially is false, it means no segment processing yielded any result object.
-            // This usually indicates the track is too short for any analysis based on defined segments.
-            if (!foundAnySegmentInitially) {
-                noSegmentsFoundMessage.textContent = `No segments could be calculated. The track might be too short or data is insufficient.`;
+            if (!foundAnyValidSegment) {
+                noSegmentsFoundMessage.textContent = `No segments could be calculated. The track might be too short for any defined segment length, or data is insufficient.`;
                 noSegmentsFoundMessage.classList.remove('hidden');
-                resultsArea.classList.add('hidden'); // Ensure table area is hidden
+                resultsArea.classList.add('hidden');
                 return;
             }
 
-            // If foundAnySegmentInitially is true, proceed to iterate and build table rows
-            // for segments that have a valid result.
             allResults.forEach(item => {
-                // A segment result is valid if item.result is not null.
-                // findFastestSegment returns null if no segment of the target distance is found or time is Infinity.
-                if (item.result) { 
-                    const row = resultsTableBody.insertRow(); 
-                    const cellName = row.insertCell();    
-                    const cellTime = row.insertCell();    
-                    const cellPace = row.insertCell();    
-
-                    cellName.textContent = item.name;
-                    cellName.className = 'py-2 px-4 font-medium text-gray-900 whitespace-nowrap'; 
-
-                    // Since item.result is not null, item.result.fastestTime is a valid number.
-                    const pacePerKm = item.result.fastestTime / item.result.totalDistanceKm; 
-                    cellTime.textContent = formatDuration(item.result.fastestTime);
-                    cellPace.textContent = formatPace(pacePerKm);
+                if (item.result) {
+                    const row = resultsTableBody.insertRow();
+                    row.insertCell().textContent = item.name;
+                    row.cells[0].className = 'py-2 px-4 font-medium text-gray-900 whitespace-nowrap';
                     
-                    cellTime.className = 'py-2 px-4'; 
-                    cellPace.className = 'py-2 px-4'; 
-                    actualRowsAdded++; // Increment counter for successfully added rows
+                    const pacePerKm = item.result.fastestTime / item.result.totalDistanceKm;
+                    row.insertCell().textContent = formatDuration(item.result.fastestTime);
+                    row.cells[1].className = 'py-2 px-4';
+                    row.insertCell().textContent = formatPace(pacePerKm);
+                    row.cells[2].className = 'py-2 px-4';
+                    actualRowsAdded++;
                 }
             });
 
-            // After iterating through all potential segments, check if any rows were actually added to the table.
             if (actualRowsAdded > 0) {
-                resultsArea.classList.remove('hidden'); // Show the results table
-                messageArea.textContent = ''; // Clear any general error messages
-                noSegmentsFoundMessage.classList.add('hidden'); // Hide the "no segments found" message
+                resultsArea.classList.remove('hidden');
+                messageArea.textContent = '';
+                noSegmentsFoundMessage.classList.add('hidden');
             } else {
-                // This case implies that foundAnySegmentInitially might have been true (meaning some processing occurred),
-                // but ultimately no valid segment times were found that could be displayed in the table.
-                // (e.g., all item.result objects were null, which would contradict foundAnySegmentInitially being true
-                // unless the logic in findFastestSegment or its usage changes).
-                // This serves as a fallback message.
-                noSegmentsFoundMessage.textContent = `Although the track was processed, no valid segment times were found to display.`;
+                noSegmentsFoundMessage.textContent = `Although the track was processed, no valid segment times were found to display. The track might be shorter than all defined segments.`;
                 noSegmentsFoundMessage.classList.remove('hidden');
-                resultsArea.classList.add('hidden'); // Ensure table area is hidden
+                resultsArea.classList.add('hidden');
             }
         }
 
         function formatDuration(totalSeconds) {
             if (isNaN(totalSeconds) || totalSeconds === Infinity || totalSeconds < 0) return "N/A";
-            const minutes = Math.floor(totalSeconds / 60);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
             const seconds = Math.floor(totalSeconds % 60);
-            return `${minutes}:${seconds.toString().padStart(2, '0')}`; 
+            let formattedTime = "";
+            if (hours > 0) {
+                formattedTime += `${hours}:${minutes.toString().padStart(2, '0')}:`;
+            } else {
+                formattedTime += `${minutes}:`;
+            }
+            formattedTime += `${seconds.toString().padStart(2, '0')}`;
+            return formattedTime;
         }
 
         function formatPace(secondsPerKm) {
             if (isNaN(secondsPerKm) || secondsPerKm === Infinity || secondsPerKm < 0) return "N/A";
             return `${formatDuration(secondsPerKm)} /km`;
         }
-
     </script>
 </body>
 </html>
